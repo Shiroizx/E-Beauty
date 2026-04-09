@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Admin - E-Beauty')</title>
+    <title>@yield('title', 'Admin — Skinbae.ID')</title>
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -98,7 +98,7 @@
     <div class="sidebar" id="sidebar">
         <div class="py-4 text-center border-bottom border-secondary">
             <h4 class="mb-0 fw-bold text-white">
-                <i class="fas fa-gem me-2" style="color: #ff6b9d;"></i> E-Beauty
+                <i class="fas fa-gem me-2" style="color: #ff6b9d;"></i> Skinbae.ID
             </h4>
             <small class="text-white-50">Admin Panel</small>
         </div>
@@ -115,6 +115,9 @@
             </a>
             <a href="{{ route('admin.categories.index') }}" class="nav-link {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
                 <i class="fas fa-folder me-3 text-center" style="width: 20px;"></i> Kategori
+            </a>
+            <a href="{{ route('admin.orders.index') }}" class="nav-link {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
+                <i class="fas fa-receipt me-3 text-center" style="width: 20px;"></i> Pesanan
             </a>
             <a href="{{ route('admin.stocks.index') }}" class="nav-link {{ request()->routeIs('admin.stocks.*') ? 'active' : '' }}">
                 <i class="fas fa-warehouse me-3 text-center" style="width: 20px;"></i> Stok

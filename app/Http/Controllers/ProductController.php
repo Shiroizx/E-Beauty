@@ -6,6 +6,7 @@ use App\Services\ProductService;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\SkinType;
+use App\Models\WishlistItem;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -69,7 +70,13 @@ class ProductController extends Controller
         $product = $this->productService->getProductDetail($slug);
         $relatedProducts = $this->productService->getRelatedProducts($product->id, 4);
 
-        return view('products.show', compact('product', 'relatedProducts'));
+        $inWishlist = auth()->check()
+            && WishlistItem::query()
+                ->where('user_id', auth()->id())
+                ->where('product_id', $product->id)
+                ->exists();
+
+        return view('products.show', compact('product', 'relatedProducts', 'inWishlist'));
     }
 
     /**

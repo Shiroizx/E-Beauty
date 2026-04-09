@@ -11,6 +11,12 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\StockController;
 use App\Http\Controllers\Admin\PromoController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\WishlistController;
+use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\SkinbaeController;
+use App\Http\Controllers\DokuWebhookController;
+use App\Http\Controllers\RegionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,22 +36,80 @@ use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 // Homepage
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
+// Skinbae.ID — brand & treatments (marketing site)
+Route::prefix('skinbae')->name('skinbae.')->group(function () {
+    Route::get('/', [SkinbaeController::class, 'home'])->name('home');
+    Route::get('/services', [SkinbaeController::class, 'services'])->name('services');
+    Route::get('/gallery', [SkinbaeController::class, 'gallery'])->name('gallery');
+    Route::get('/contact', [SkinbaeController::class, 'contact'])->name('contact');
+    Route::post('/contact', [SkinbaeController::class, 'contactStore'])
+        ->middleware('throttle:5,1')
+        ->name('contact.store');
+});
+
 // Product Catalog
 Route::get('/catalog', [ProductController::class, 'index'])->name('catalog');
 Route::get('/products/{slug}', [ProductController::class, 'show'])->name('products.show');
 Route::get('/search', [ProductController::class, 'search'])->name('products.search');
 Route::post('/products/check-availability', [ProductController::class, 'checkAvailability'])->name('products.check-availability');
 
+// DOKU Webhook (no auth, no CSRF — called by DOKU servers)
+Route::post('/doku/notification', [DokuWebhookController::class, 'handleNotification'])->name('doku.notification');
+
+// Region Proxy API
+Route::get('/api/regions/provinces', [RegionController::class, 'provinces'])->name('api.regions.provinces');
+Route::get('/api/regions/cities/{province}', [RegionController::class, 'cities'])->name('api.regions.cities');
+Route::get('/api/regions/districts/{city}', [RegionController::class, 'districts'])->name('api.regions.districts');
+Route::get('/api/regions/villages/{district}', [RegionController::class, 'villages'])->name('api.regions.villages');
+
+// Tracking
+Route::get('/track', [\App\Http\Controllers\TrackingController::class, 'index'])->name('track.index');
+Route::post('/track', [\App\Http\Controllers\TrackingController::class, 'search'])->name('track.search');
+Route::get('/track/{order_number}', [\App\Http\Controllers\TrackingController::class, 'show'])->name('track.show');
+
 // Reviews
 Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');
 
 // Authenticated Customer Routes
 Route::middleware('auth')->group(function () {
-    // Submit Review
     Route::post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
-    
-    // Wishlist/Favorites (optional - can be implemented later)
-    // Route::resource('favorites', FavoriteController::class)->only(['index', 'store', 'destroy']);
+
+    Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+    Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
+    Route::patch('/cart/{product}', [CartController::class, 'update'])->name('cart.update');
+    Route::delete('/cart/{product}', [CartController::class, 'destroy'])->name('cart.destroy');
+
+    Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
+    Route::get('/checkout/step/{step}', [CheckoutController::class, 'show'])
+        ->where('step', '[1-3]')
+        ->name('checkout.step');
+    Route::post('/checkout/step-1', [CheckoutController::class, 'storeStep1'])->name('checkout.step1');
+    Route::post('/checkout/step-2', [CheckoutController::class, 'storeStep2'])->name('checkout.step2');
+    Route::post('/checkout/step-3', [CheckoutController::class, 'storeStep3'])
+        ->middleware('throttle:10,1')
+        ->name('checkout.step3');
+    Route::post('/checkout/calculate-shipping', [CheckoutController::class, 'calculateShipping'])
+        ->name('checkout.calculate-shipping');
+    Route::get('/orders/{order_number}/confirmation', [CheckoutController::class, 'confirmation'])
+        ->where('order_number', '[A-Za-z0-9\-]+')
+        ->name('orders.confirmation');
+    Route::get('/orders/{order_number}/status', [CheckoutController::class, 'status'])
+        ->where('order_number', '[A-Za-z0-9\-]+')
+        ->name('orders.status');
+
+    Route::get('/orders', [\App\Http\Controllers\OrderController::class, 'index'])->name('orders.index');
+    Route::get('/orders/{order_number}', [\App\Http\Controllers\OrderController::class, 'show'])
+        ->where('order_number', '[A-Za-z0-9\-]+')
+        ->name('orders.show');
+    Route::get('/orders/{order_number}/invoice', [\App\Http\Controllers\OrderController::class, 'invoice'])
+        ->where('order_number', '[A-Za-z0-9\-]+')
+        ->name('orders.invoice');
+    Route::get('/orders/export', [\App\Http\Controllers\OrderController::class, 'export'])->name('orders.export');
+    Route::get('/orders/poll', [\App\Http\Controllers\OrderController::class, 'poll'])->name('orders.poll');
+
+    Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
+    Route::post('/wishlist', [WishlistController::class, 'store'])->name('wishlist.store');
+    Route::delete('/wishlist/{product}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
 });
 
 // ========================================
@@ -76,6 +140,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Promo Management
     Route::resource('promos', PromoController::class);
     
+    // Order Management
+    Route::get('/orders/export', [\App\Http\Controllers\Admin\OrderController::class, 'export'])->name('orders.export');
+    Route::post('/orders/print-bulk', [\App\Http\Controllers\Admin\OrderController::class, 'printBulk'])->name('orders.print_bulk');
+    Route::get('/orders/{order}/print', [\App\Http\Controllers\Admin\OrderController::class, 'print'])->name('orders.print');
+    Route::get('/orders/{order}/invoice', [\App\Http\Controllers\Admin\OrderController::class, 'invoice'])->name('orders.invoice');
+    Route::resource('orders', \App\Http\Controllers\Admin\OrderController::class)->except(['create', 'store', 'destroy']);
+    
     // Review Moderation
     Route::get('/reviews', [AdminReviewController::class, 'index'])->name('reviews.index');
     Route::post('/reviews/{review}/approve', [AdminReviewController::class, 'approve'])->name('reviews.approve');
@@ -93,6 +164,10 @@ Route::middleware('guest')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::get('register', [AuthController::class, 'showRegistrationForm'])->name('register');
     Route::post('register', [AuthController::class, 'register']);
+    
+    // Socialite Routes
+    Route::get('auth/{provider}', [\App\Http\Controllers\Auth\SocialiteController::class, 'redirect'])->name('socialite.redirect');
+    Route::get('auth/{provider}/callback', [\App\Http\Controllers\Auth\SocialiteController::class, 'callback'])->name('socialite.callback');
 });
 
 Route::post('logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');

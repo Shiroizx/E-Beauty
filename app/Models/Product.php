@@ -87,6 +87,16 @@ class Product extends Model
         return $this->belongsToMany(Promo::class, 'promo_products');
     }
 
+    public function cartItems()
+    {
+        return $this->hasMany(CartItem::class);
+    }
+
+    public function wishlistItems()
+    {
+        return $this->hasMany(WishlistItem::class);
+    }
+
     /**
      * Scope to get only active products
      */

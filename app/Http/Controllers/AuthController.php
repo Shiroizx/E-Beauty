@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Support\AuthIntended;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -13,8 +14,10 @@ class AuthController extends Controller
     /**
      * Display the login view.
      */
-    public function showLoginForm()
+    public function showLoginForm(Request $request)
     {
+        AuthIntended::putIntendedFromQuery($request);
+
         return view('auth.login');
     }
 
@@ -31,7 +34,7 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
-            if (Auth::user()->email === 'admin@ebeauty.com') {
+            if (Auth::user()->email === 'admin@skinbae.id') {
                 return redirect()->intended(route('admin.dashboard'));
             }
 
@@ -46,8 +49,10 @@ class AuthController extends Controller
     /**
      * Display the registration view.
      */
-    public function showRegistrationForm()
+    public function showRegistrationForm(Request $request)
     {
+        AuthIntended::putIntendedFromQuery($request);
+
         return view('auth.register');
     }
 
@@ -70,7 +75,7 @@ class AuthController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('home'));
+        return redirect()->intended(route('home'));
     }
 
     /**

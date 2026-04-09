@@ -22,7 +22,7 @@ class IsAdmin
 
         // Check if user has admin role (you can customize this based on your user table structure)
         // Option 1: Check by email
-        if (auth()->user()->email === 'admin@ebeauty.com') {
+        if (auth()->user()->email === 'admin@skinbae.id') {
             return $next($request);
         }
 

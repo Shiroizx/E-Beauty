@@ -1,6 +1,6 @@
 /.phpunit.cache
 /node_modules
-/public/build
+# /public/build   <-- Dikomentari agar folder build Vite ikut ter-commit ke Git untuk Shared Hosting
 /public/hot
 /public/storage
 /storage/*.key
