@@ -19,7 +19,7 @@ class CartService
     }
 
     /**
-     * @return Collection<int, object{product: Product, quantity: int}>
+     * @return Collection<int, object{product: Product, quantity: int, is_selected: bool}>
      */
     public function getLineItems(): Collection
     {
@@ -35,9 +35,18 @@ class CartService
                 return (object) [
                     'product' => $row->product,
                     'quantity' => (int) $row->quantity,
+                    'is_selected' => (bool) $row->is_selected,
                 ];
             })
             ->filter(fn ($line) => $line->product !== null && $line->product->is_active);
+    }
+
+    /**
+     * @return Collection<int, object{product: Product, quantity: int, is_selected: bool}>
+     */
+    public function getSelectedLineItems(): Collection
+    {
+        return $this->getLineItems()->filter(fn ($line) => $line->is_selected);
     }
 
     public function add(Product $product, int $quantity): void
@@ -106,6 +115,29 @@ class CartService
     public function remove(Product $product): void
     {
         $this->updateQuantity($product, 0);
+    }
+
+    public function toggleSelection(Product $product, bool $isSelected): void
+    {
+        if (! auth()->check()) {
+            return;
+        }
+
+        CartItem::query()
+            ->where('user_id', auth()->id())
+            ->where('product_id', $product->id)
+            ->update(['is_selected' => $isSelected]);
+    }
+
+    public function toggleAllSelection(bool $isSelected): void
+    {
+        if (! auth()->check()) {
+            return;
+        }
+
+        CartItem::query()
+            ->where('user_id', auth()->id())
+            ->update(['is_selected' => $isSelected]);
     }
 
     public function clearForUser(int $userId): void

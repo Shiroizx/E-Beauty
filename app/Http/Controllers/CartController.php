@@ -15,7 +15,7 @@ class CartController extends Controller
     public function index()
     {
         $lines = $this->cartService->getLineItems();
-        $subtotal = $lines->sum(fn ($line) => $line->product->final_price * $line->quantity);
+        $subtotal = $lines->filter(fn ($line) => $line->is_selected)->sum(fn ($line) => $line->product->final_price * $line->quantity);
 
         return view('cart.index', compact('lines', 'subtotal'));
     }
@@ -60,5 +60,21 @@ class CartController extends Controller
         $this->cartService->remove($product);
 
         return back()->with('success', 'Item dihapus dari keranjang.');
+    }
+
+    public function toggle(Request $request, Product $product)
+    {
+        $isSelected = $request->boolean('is_selected');
+        $this->cartService->toggleSelection($product, $isSelected);
+        
+        return response()->json(['success' => true]);
+    }
+
+    public function toggleAll(Request $request)
+    {
+        $isSelected = $request->boolean('is_selected');
+        $this->cartService->toggleAllSelection($isSelected);
+        
+        return response()->json(['success' => true]);
     }
 }

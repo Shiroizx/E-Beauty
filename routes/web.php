@@ -17,6 +17,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\SkinbaeController;
 use App\Http\Controllers\DokuWebhookController;
 use App\Http\Controllers\RegionController;
+use App\Http\Controllers\AuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -76,6 +77,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
     Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
+    Route::patch('/cart/toggle-all', [CartController::class, 'toggleAll'])->name('cart.toggle-all');
+    Route::patch('/cart/{product}/toggle', [CartController::class, 'toggle'])->name('cart.toggle');
     Route::patch('/cart/{product}', [CartController::class, 'update'])->name('cart.update');
     Route::delete('/cart/{product}', [CartController::class, 'destroy'])->name('cart.destroy');
 
@@ -110,6 +113,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
     Route::post('/wishlist', [WishlistController::class, 'store'])->name('wishlist.store');
     Route::delete('/wishlist/{product}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
+
+    // Profile
+    Route::get('/profile', [AuthController::class, 'showProfile'])->name('profile.show');
+    Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
 });
 
 // ========================================
@@ -157,8 +164,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 // AUTH ROUTES
 // ========================================
 
-use App\Http\Controllers\AuthController;
-
 Route::middleware('guest')->group(function () {
     Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('login', [AuthController::class, 'login']);
@@ -169,5 +174,11 @@ Route::middleware('guest')->group(function () {
     Route::get('auth/{provider}', [\App\Http\Controllers\Auth\SocialiteController::class, 'redirect'])->name('socialite.redirect');
     Route::get('auth/{provider}/callback', [\App\Http\Controllers\Auth\SocialiteController::class, 'callback'])->name('socialite.callback');
 });
+
+// Password Reset (dibuka untuk guest maupun user yang sudah login)
+Route::get('forgot-password', [AuthController::class, 'showForgotPasswordForm'])->name('password.request');
+Route::post('forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
+Route::get('reset-password/{token}', [AuthController::class, 'showResetPasswordForm'])->name('password.reset');
+Route::post('reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 
 Route::post('logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');

@@ -77,34 +77,95 @@ class ProductService
                 break;
         }
 
-        return $query->paginate($filters['per_page'] ?? 12);
+        return $query->paginate($filters['per_page'] ?? 15);
     }
 
     /**
      * Search products by keyword
      */
-    public function searchProducts(string $keyword, array $filters = [])
+    public function searchProducts(?string $keyword, array $filters = [])
     {
-        $filters['keyword'] = $keyword;
-
         $query = Product::query()
-            ->with(['brand', 'category', 'stock'])
+            ->with(['brand', 'category', 'stock', 'skinTypes'])
             ->active();
 
         // Search in name, description, and ingredients
-        $query->where(function ($q) use ($keyword) {
-            $q->where('name', 'like', "%{$keyword}%")
-              ->orWhere('description', 'like', "%{$keyword}%")
-              ->orWhere('ingredients', 'like', "%{$keyword}%")
-              ->orWhereHas('brand', function ($brandQuery) use ($keyword) {
-                  $brandQuery->where('name', 'like', "%{$keyword}%");
-              })
-              ->orWhereHas('category', function ($catQuery) use ($keyword) {
-                  $catQuery->where('name', 'like', "%{$keyword}%");
-              });
-        });
+        if (!empty($keyword)) {
+            $query->where(function ($q) use ($keyword) {
+                $q->where('name', 'like', "%{$keyword}%")
+                  ->orWhere('description', 'like', "%{$keyword}%")
+                  ->orWhere('ingredients', 'like', "%{$keyword}%")
+                  ->orWhereHas('brand', function ($brandQuery) use ($keyword) {
+                      $brandQuery->where('name', 'like', "%{$keyword}%");
+                  })
+                  ->orWhereHas('category', function ($catQuery) use ($keyword) {
+                      $catQuery->where('name', 'like', "%{$keyword}%");
+                  });
+            });
+        }
 
-        return $this->getFilteredProducts($filters);
+        // Filter by category
+        if (!empty($filters['category_id'])) {
+            $query->inCategory($filters['category_id']);
+        }
+
+        // Filter by brand(s)
+        if (!empty($filters['brand_ids'])) {
+            $query->whereIn('brand_id', $filters['brand_ids']);
+        }
+
+        // Filter by skin type(s)
+        if (!empty($filters['skin_type_ids'])) {
+            $query->whereHas('skinTypes', function ($q) use ($filters) {
+                $q->whereIn('skin_types.id', $filters['skin_type_ids']);
+            });
+        }
+
+        // Filter by price range
+        if (!empty($filters['min_price']) || !empty($filters['max_price'])) {
+            $min = $filters['min_price'] ?? 0;
+            $max = $filters['max_price'] ?? PHP_INT_MAX;
+            $query->priceRange($min, $max);
+        }
+
+        // Filter by minimum rating
+        if (!empty($filters['min_rating'])) {
+            $query->whereHas('reviews', function ($q) use ($filters) {
+                $q->approved();
+            })->withAvg('reviews as avg_rating', 'rating')
+              ->having('avg_rating', '>=', $filters['min_rating']);
+        }
+
+        // Filter by stock availability
+        if (!empty($filters['in_stock_only'])) {
+            $query->inStock();
+        }
+
+        // Sort
+        $sortBy = $filters['sort_by'] ?? 'newest';
+        
+        switch ($sortBy) {
+            case 'price_low_high':
+                $query->orderBy('price', 'asc');
+                break;
+            case 'price_high_low':
+                $query->orderBy('price', 'desc');
+                break;
+            case 'rating':
+                $query->withAvg('reviews as avg_rating', 'rating')
+                      ->orderByDesc('avg_rating');
+                break;
+            case 'popularity':
+                $query->withCount('reviews')
+                      ->orderByDesc('reviews_count');
+                break;
+            case 'newest':
+            default:
+                $query->orderByDesc('created_at');
+                break;
+        }
+
+        return $query->paginate($filters['per_page'] ?? 12);
     }
 
     /**

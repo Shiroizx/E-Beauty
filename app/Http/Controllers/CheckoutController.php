@@ -29,13 +29,13 @@ class CheckoutController extends Controller
             abort(404);
         }
 
-        $lines = $this->cartService->getLineItems();
+        $lines = $this->cartService->getSelectedLineItems();
         if ($lines->isEmpty()) {
             $request->session()->forget(self::WIZARD_KEY);
 
             return redirect()
                 ->route('cart.index')
-                ->with('error', 'Keranjang kosong. Tambahkan produk sebelum checkout.');
+                ->with('error', 'Tidak ada produk yang dipilih. Pilih produk di keranjang sebelum checkout.');
         }
 
         $wizard = $request->session()->get(self::WIZARD_KEY, []);
@@ -59,10 +59,10 @@ class CheckoutController extends Controller
 
     public function storeStep1(Request $request)
     {
-        if ($this->cartService->getLineItems()->isEmpty()) {
+        if ($this->cartService->getSelectedLineItems()->isEmpty()) {
             $request->session()->forget(self::WIZARD_KEY);
 
-            return redirect()->route('cart.index')->with('error', 'Keranjang kosong.');
+            return redirect()->route('cart.index')->with('error', 'Tidak ada produk yang dipilih.');
         }
 
         $data = $request->validate([
@@ -85,10 +85,10 @@ class CheckoutController extends Controller
 
     public function storeStep2(Request $request)
     {
-        if ($this->cartService->getLineItems()->isEmpty()) {
+        if ($this->cartService->getSelectedLineItems()->isEmpty()) {
             $request->session()->forget(self::WIZARD_KEY);
 
-            return redirect()->route('cart.index')->with('error', 'Keranjang kosong.');
+            return redirect()->route('cart.index')->with('error', 'Tidak ada produk yang dipilih.');
         }
 
         $wizard = $request->session()->get(self::WIZARD_KEY, []);
@@ -116,7 +116,7 @@ class CheckoutController extends Controller
         ]);
 
         // Validate if service and courier combination is actually valid
-        $lines = $this->cartService->getLineItems();
+        $lines = $this->cartService->getSelectedLineItems();
         $totalItems = $lines->sum('quantity');
         $shippingCost = $this->checkoutService->validateShippingSelection(
             $data['shipping_service'],
@@ -140,10 +140,10 @@ class CheckoutController extends Controller
 
     public function storeStep3(Request $request)
     {
-        if ($this->cartService->getLineItems()->isEmpty()) {
+        if ($this->cartService->getSelectedLineItems()->isEmpty()) {
             $request->session()->forget(self::WIZARD_KEY);
 
-            return redirect()->route('cart.index')->with('error', 'Keranjang kosong.');
+            return redirect()->route('cart.index')->with('error', 'Tidak ada produk yang dipilih.');
         }
 
         $wizard = $request->session()->get(self::WIZARD_KEY, []);
@@ -274,7 +274,7 @@ class CheckoutController extends Controller
             'city' => 'required|string',
         ]);
 
-        $lines = $this->cartService->getLineItems();
+        $lines = $this->cartService->getSelectedLineItems();
         $totalItems = $lines->sum('quantity');
 
         $rates = $this->checkoutService->calculateShippingRates(

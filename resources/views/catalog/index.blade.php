@@ -109,65 +109,94 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5">
                 @forelse($products as $product)
-                    <article class="group flex flex-col overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-md shadow-brand-200/15 transition hover:shadow-pink-soft">
-                        <a href="{{ route('products.show', $product->slug) }}" class="relative block aspect-[4/5] overflow-hidden bg-brand-50">
-                            <img src="{{ $product->image_url }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" loading="lazy">
-                            @if($product->has_discount)
-                                <span class="absolute right-3 top-3 rounded-full bg-white/95 px-2 py-1 text-xs font-bold text-brand-800 shadow-sm ring-1 ring-brand-100">−{{ $product->discount_percentage }}%</span>
-                            @endif
-                            @if(!$product->is_in_stock)
-                                <div class="absolute inset-0 flex items-center justify-center bg-white/85 text-xs font-semibold uppercase tracking-wider text-neutral-500 backdrop-blur-[2px]">Tidak tersedia</div>
-                            @endif
-                        </a>
-                        <div class="flex flex-1 flex-col p-4 pt-3">
-                            <p class="text-[0.65rem] font-semibold uppercase tracking-wider text-brand-500">{{ strtoupper($product->brand->name) }}</p>
-                            <h2 class="mt-1 text-sm font-semibold leading-snug text-neutral-900">
-                                <a href="{{ route('products.show', $product->slug) }}" class="hover:text-brand-600">{{ Str::limit($product->name, 52) }}</a>
-                            </h2>
-                            @if($product->review_count > 0)
-                                <p class="mt-2 text-xs text-neutral-500"><span class="font-semibold text-neutral-800">{{ number_format((float) $product->average_rating, 1) }}</span> · {{ $product->review_count }} ulasan</p>
-                            @else
-                                <p class="mt-2 text-xs text-neutral-400">Belum ada ulasan</p>
-                            @endif
-                            <div class="mt-auto border-t border-brand-50 pt-3">
+                    <article class="group relative flex flex-col overflow-hidden rounded-xl border border-brand-100/50 bg-white shadow-sm shadow-brand-900/5 transition-all duration-300 hover:border-brand-200 hover:shadow-xl hover:shadow-brand-900/10">
+                        <!-- Image Container with Hover Actions -->
+                        <div class="relative block aspect-[3/4] overflow-hidden bg-brand-50/50">
+                            <a href="{{ route('products.show', $product->slug) }}" class="block h-full w-full">
+                                <img src="{{ $product->image_url }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy">
+                            </a>
+                            
+                            <!-- Badges -->
+                            <div class="absolute left-2 top-2 flex flex-col gap-1">
                                 @if($product->has_discount)
-                                    <p class="text-xs text-neutral-400 line-through">{{ $product->formatted_price }}</p>
+                                    <span class="rounded bg-brand-500 px-1.5 py-0.5 text-[0.6rem] font-bold text-white shadow-sm">−{{ $product->discount_percentage }}%</span>
                                 @endif
-                                <p class="text-base font-bold text-brand-800">{{ $product->formatted_final_price }}</p>
+                                @if(!$product->is_in_stock)
+                                    <span class="rounded bg-neutral-800/80 px-1.5 py-0.5 text-[0.6rem] font-bold text-white shadow-sm backdrop-blur-sm">Habis</span>
+                                @endif
                             </div>
-                            <div class="relative z-[2] mt-3 flex flex-col gap-2">
-                                <a href="{{ route('products.show', $product->slug) }}" class="rounded-full border border-brand-200 py-2 text-center text-xs font-semibold uppercase tracking-wide text-brand-800 transition hover:border-brand-400 hover:bg-brand-50">Lihat detail</a>
+
+                            <!-- Hover Actions Overlay -->
+                            <div class="absolute inset-x-0 bottom-0 flex translate-y-full flex-col gap-1.5 p-3 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
                                 @if($product->is_in_stock)
                                     @auth
-                                        <form action="{{ route('cart.store') }}" method="POST">
+                                        <form action="{{ route('cart.store') }}" method="POST" class="w-full">
                                             @csrf
                                             <input type="hidden" name="product_id" value="{{ $product->id }}">
                                             <input type="hidden" name="quantity" value="1">
-                                            <button type="submit" class="btn-brand w-full py-2.5 text-xs">Tambah ke keranjang</button>
+                                            <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-lg bg-white/95 px-3 py-2 text-xs font-bold text-brand-600 shadow-sm backdrop-blur transition hover:bg-brand-50 hover:text-brand-700">
+                                                <i class="fas fa-shopping-bag text-[0.7rem]" aria-hidden="true"></i>
+                                                Beli
+                                            </button>
                                         </form>
                                     @else
-                                        <a href="{{ $loginReturnUrl ?? route('login') }}" class="btn-brand w-full py-2.5 text-center text-xs">Masuk untuk membeli</a>
+                                        <a href="{{ $loginReturnUrl ?? route('login') }}" class="flex w-full items-center justify-center gap-2 rounded-lg bg-white/95 px-3 py-2 text-xs font-bold text-brand-600 shadow-sm backdrop-blur transition hover:bg-brand-50">
+                                            Beli
+                                        </a>
                                     @endauth
                                 @endif
+                                
                                 @auth
                                     @if(in_array($product->id, $wishlistProductIds ?? []))
-                                        <form action="{{ route('wishlist.destroy', $product) }}" method="POST">
+                                        <form action="{{ route('wishlist.destroy', $product) }}" method="POST" class="w-full">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="w-full py-2 text-xs font-medium text-brand-500 underline decoration-brand-300 underline-offset-2 hover:text-brand-700" aria-label="Hapus dari wishlist">Hapus wishlist</button>
+                                            <button type="submit" class="flex w-full items-center justify-center rounded-lg bg-neutral-900/80 py-2 text-xs font-semibold text-white backdrop-blur transition hover:bg-neutral-900" aria-label="Hapus dari wishlist">
+                                                <i class="fas fa-heart text-brand-400" aria-hidden="true"></i>
+                                            </button>
                                         </form>
                                     @else
-                                        <form action="{{ route('wishlist.store') }}" method="POST">
+                                        <form action="{{ route('wishlist.store') }}" method="POST" class="w-full">
                                             @csrf
                                             <input type="hidden" name="product_id" value="{{ $product->id }}">
-                                            <button type="submit" class="w-full py-2 text-xs font-medium text-brand-500 underline decoration-brand-300 underline-offset-2 hover:text-brand-700" aria-label="Tambah ke wishlist">Simpan ke wishlist</button>
+                                            <button type="submit" class="flex w-full items-center justify-center rounded-lg bg-white/90 py-2 text-xs font-semibold text-neutral-700 shadow-sm backdrop-blur transition hover:bg-white hover:text-brand-500" aria-label="Tambah ke wishlist">
+                                                <i class="far fa-heart" aria-hidden="true"></i>
+                                            </button>
                                         </form>
                                     @endif
-                                @else
-                                    <a href="{{ $loginReturnUrl ?? route('login') }}" class="w-full py-2 text-center text-xs font-medium text-brand-500 underline">Wishlist</a>
                                 @endauth
+                            </div>
+                            
+                            <!-- Dark Gradient for Hover Text Legibility -->
+                            <div class="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+                        </div>
+
+                        <!-- Product Info (Clean & Minimal) -->
+                        <div class="flex flex-1 flex-col p-3">
+                            <p class="text-[0.6rem] font-bold uppercase tracking-wider text-brand-500">{{ $product->brand->name }}</p>
+                            <h2 class="mt-0.5 text-[0.8rem] font-medium leading-snug text-neutral-800 line-clamp-2">
+                                <a href="{{ route('products.show', $product->slug) }}" class="hover:text-brand-600 focus:outline-none">
+                                    <span class="absolute inset-0 z-10" aria-hidden="true"></span>
+                                    {{ $product->name }}
+                                </a>
+                            </h2>
+                            
+                            <div class="mt-auto pt-2">
+                                <div class="flex items-center gap-1.5">
+                                    <p class="text-sm font-bold text-neutral-900">{{ $product->formatted_final_price }}</p>
+                                    @if($product->has_discount)
+                                        <p class="text-[0.65rem] text-neutral-400 line-through">{{ $product->formatted_price }}</p>
+                                    @endif
+                                </div>
+                                @if($product->review_count > 0)
+                                    <div class="mt-1 flex items-center gap-1 text-[0.65rem] text-neutral-500">
+                                        <i class="fas fa-star text-[0.55rem] text-amber-400"></i>
+                                        <span class="font-medium text-neutral-700">{{ number_format((float) $product->average_rating, 1) }}</span>
+                                        <span>({{ $product->review_count }})</span>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     </article>

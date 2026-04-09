@@ -95,6 +95,14 @@
                                     <i class="fas fa-receipt w-4 text-brand-500" aria-hidden="true"></i>
                                     Riwayat Pesanan
                                 </a>
+                                <a href="{{ route('profile.show') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-brand-50" role="menuitem">
+                                    <i class="fas fa-user-pen w-4 text-brand-500" aria-hidden="true"></i>
+                                    Profil Saya
+                                </a>
+                                <a href="{{ route('password.request') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-brand-50" role="menuitem">
+                                    <i class="fas fa-key w-4 text-brand-500" aria-hidden="true"></i>
+                                    Reset Password
+                                </a>
                                 <a href="{{ route('wishlist.index') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-brand-50" role="menuitem">
                                     <i class="far fa-heart w-4 text-brand-500" aria-hidden="true"></i>
                                     Wishlist

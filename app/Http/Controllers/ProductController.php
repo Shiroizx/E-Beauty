@@ -32,7 +32,7 @@ class ProductController extends Controller
             'min_rating' => $request->input('min_rating'),
             'in_stock_only' => $request->boolean('in_stock_only'),
             'sort_by' => $request->input('sort_by', 'newest'),
-            'per_page' => $request->input('per_page', 12),
+            'per_page' => $request->input('per_page', 15),
         ];
 
         // Handle search

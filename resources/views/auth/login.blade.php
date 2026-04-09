@@ -276,7 +276,7 @@
                         <input type="checkbox" name="remember" id="remember" class="check-custom h-4.5 w-4.5 rounded border-2 border-brand-200 text-brand-500 outline-none focus:ring-2 focus:ring-brand-200 focus:ring-offset-2" {{ old('remember') ? 'checked' : '' }}>
                         <span class="text-sm text-neutral-600">Ingat saya</span>
                     </label>
-                    <a href="#" class="text-sm font-semibold text-brand-600 transition hover:text-brand-800" @click.prevent="showForgotModal = true">
+                    <a href="{{ route('password.request') }}" class="text-sm font-semibold text-brand-600 transition hover:text-brand-800">
                         Lupa sandi?
                     </a>
                 </div>
