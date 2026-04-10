@@ -106,11 +106,32 @@
         <div class="border-t border-brand-100 bg-brand-50/60 px-5 py-4">
             <div class="ml-auto max-w-sm space-y-1 text-sm">
                 <div class="flex justify-between"><span class="text-neutral-600">Subtotal</span><span class="font-semibold text-neutral-900">{{ $order->formatted_subtotal }}</span></div>
+                @if((float) $order->discount_amount > 0)
+                    <div class="flex justify-between text-emerald-700"><span>Diskon promo @if($order->promo_code)<span class="font-mono text-xs">({{ $order->promo_code }})</span>@endif</span><span class="font-semibold">− {{ $order->formatted_discount_amount }}</span></div>
+                @endif
                 <div class="flex justify-between"><span class="text-neutral-600">Ongkir</span><span class="font-semibold text-neutral-900">{{ $order->formatted_shipping }}</span></div>
                 <div class="flex justify-between text-base font-bold"><span class="text-brand-900">Total</span><span class="text-brand-900">{{ $order->formatted_total }}</span></div>
             </div>
         </div>
     </div>
+
+    @if($order->items->isNotEmpty())
+        <section class="mt-6 overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-md" id="ulasan-pesanan" aria-labelledby="ulasan-pesanan-heading">
+            <div class="border-b border-brand-50 bg-gradient-to-r from-brand-50/40 to-white px-5 py-4 sm:px-6">
+                <h2 id="ulasan-pesanan-heading" class="text-base font-bold text-brand-900">Penilaian produk</h2>
+                <p class="mt-1 max-w-2xl text-sm leading-relaxed text-neutral-600">Bagikan pengalaman Anda setelah menggunakan produk. Ulasan tersedia hanya jika pesanan ini berstatus <strong class="font-semibold text-neutral-800">Selesai</strong>.</p>
+            </div>
+            <div class="space-y-4 p-4 sm:p-6">
+                @foreach($order->items->unique('product_id') as $item)
+                    <x-order.review-block
+                        :order="$order"
+                        :item="$item"
+                        :state="$itemReviewStates[$item->product_id] ?? 'locked'"
+                    />
+                @endforeach
+            </div>
+        </section>
+    @endif
 
     <div id="tracking" class="mt-6 rounded-2xl border border-brand-100 bg-white p-5 shadow-md">
         <div class="mb-5 flex items-center justify-between">

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Support\AuthIntended;
+use App\Services\CaptchaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use App\Support\ActivityLogger;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -13,6 +15,9 @@ use Illuminate\Validation\Rules;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        protected CaptchaService $captchaService
+    ) {}
     /**
      * Display the login view.
      */
@@ -20,7 +25,9 @@ class AuthController extends Controller
     {
         AuthIntended::putIntendedFromQuery($request);
 
-        return view('auth.login');
+        return view('auth.login', [
+            'captcha' => $this->captchaService->challengeForForm('login'),
+        ]);
     }
 
     /**
@@ -28,6 +35,8 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+        $this->captchaService->validateRequest($request, 'login');
+
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
@@ -36,8 +45,16 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
-            if (Auth::user()->email === 'admin@skinbae.id') {
-                return redirect()->intended(route('admin.dashboard'));
+            $user = Auth::user();
+            if ($user->isStaff()) {
+                ActivityLogger::log(
+                    'auth.login',
+                    'Login staff: '.$user->email,
+                    User::class,
+                    $user->id
+                );
+
+                return redirect()->intended(route($user->staffDashboardRoute()));
             }
 
             return redirect()->intended(route('home'));
@@ -55,7 +72,9 @@ class AuthController extends Controller
     {
         AuthIntended::putIntendedFromQuery($request);
 
-        return view('auth.register');
+        return view('auth.register', [
+            'captcha' => $this->captchaService->challengeForForm('register'),
+        ]);
     }
 
     /**
@@ -63,6 +82,8 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
+        $this->captchaService->validateRequest($request, 'register');
+
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
@@ -127,7 +148,9 @@ class AuthController extends Controller
      */
     public function showForgotPasswordForm()
     {
-        return view('auth.forgot-password');
+        return view('auth.forgot-password', [
+            'captcha' => $this->captchaService->challengeForForm('forgot'),
+        ]);
     }
 
     /**
@@ -135,17 +158,19 @@ class AuthController extends Controller
      */
     public function sendResetLink(Request $request)
     {
+        $this->captchaService->validateRequest($request, 'forgot');
+
         $request->validate([
             'email' => ['required', 'email'],
         ]);
 
-        $status = Password::sendResetLink($request->only('email'));
+        // Respons generik: cegah enumerasi email (siapa yang terdaftar).
+        Password::sendResetLink($request->only('email'));
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return back()->with('success', __($status));
-        }
-
-        return back()->withErrors(['email' => __($status)]);
+        return back()->with(
+            'success',
+            'Jika alamat email terdaftar di sistem kami, tautan reset sandi telah dikirim. Periksa kotak masuk atau folder spam.'
+        );
     }
 
     /**
@@ -156,6 +181,7 @@ class AuthController extends Controller
         return view('auth.reset-password', [
             'token' => $token,
             'email' => $request->query('email'),
+            'captcha' => $this->captchaService->challengeForForm('reset'),
         ]);
     }
 
@@ -164,6 +190,8 @@ class AuthController extends Controller
      */
     public function resetPassword(Request $request)
     {
+        $this->captchaService->validateRequest($request, 'reset');
+
         $request->validate([
             'token' => ['required'],
             'email' => ['required', 'email'],

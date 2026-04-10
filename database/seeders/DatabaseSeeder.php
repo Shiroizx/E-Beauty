@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UserSeeder::class,
+            SuperAdminSeeder::class,
             BrandSeeder::class,
             CategorySeeder::class,
             SkinTypeSeeder::class,
@@ -20,6 +21,7 @@ class DatabaseSeeder extends Seeder
             StockSeeder::class,
             PromoSeeder::class,
             ReviewSeeder::class,
+            DummyDataSeeder::class,
         ]);
     }
 }

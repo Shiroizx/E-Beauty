@@ -15,8 +15,8 @@ use Carbon\Carbon;
 class CheckoutService
 {
     public function __construct(
-        protected CartService $cartService,
         protected DokuService $dokuService,
+        protected PromoService $promoService,
     ) {}
 
     public function calculateShippingRates(string $province, string $city, int $totalItems): array
@@ -151,21 +151,22 @@ class CheckoutService
      * @param  array<string, mixed>  $shipping
      * @return array{order: Order, lines: \Illuminate\Support\Collection}
      */
-    public function placeOrder(User $user, array $shipping, string $paymentMethod): array
+    public function placeOrder(User $user, array $shipping, string $paymentMethod, ?string $promoCode = null): array
     {
         if (! in_array($paymentMethod, ['bank_transfer', 'cod', 'simulated_card', 'doku'], true)) {
             throw new CheckoutException('Metode pembayaran tidak valid.');
         }
 
-        return DB::transaction(function () use ($user, $shipping, $paymentMethod) {
+        return DB::transaction(function () use ($user, $shipping, $paymentMethod, $promoCode) {
             $rows = CartItem::query()
                 ->where('user_id', $user->id)
+                ->where('is_selected', true)
                 ->with(['product.stock', 'product.brand'])
                 ->lockForUpdate()
                 ->get();
 
             if ($rows->isEmpty()) {
-                throw new CheckoutException('Keranjang kosong.');
+                throw new CheckoutException('Tidak ada produk terpilih untuk checkout. Kembali ke keranjang dan pilih item.');
             }
 
             $productIds = $rows->pluck('product_id')->unique()->sort()->values()->all();
@@ -224,7 +225,20 @@ class CheckoutService
                 $shippingCost = 0.0;
             }
 
-            $total = $subtotal + $shippingCost;
+            $discountAmount = 0.0;
+            $appliedPromoCode = null;
+            if ($promoCode !== null && trim($promoCode) !== '') {
+                $code = strtoupper(trim($promoCode));
+                $validation = $this->promoService->validatePromoCode($code, $user->id, $subtotal, $productIds);
+                if (! $validation['valid']) {
+                    throw new CheckoutException($validation['message']);
+                }
+                $discountAmount = (float) $validation['discount_amount'];
+                $appliedPromoCode = $validation['promo']->code;
+                $this->promoService->markAsUsed($validation['promo'], $user->id);
+            }
+
+            $total = round(max(0, $subtotal - $discountAmount) + $shippingCost, 2);
 
             [$status, $paymentStatus] = $this->resolvePaymentState($paymentMethod);
 
@@ -234,7 +248,9 @@ class CheckoutService
                 'status' => $status,
                 'payment_status' => $paymentStatus,
                 'payment_method' => $paymentMethod,
+                'promo_code' => $appliedPromoCode,
                 'subtotal' => $subtotal,
+                'discount_amount' => $discountAmount,
                 'shipping_cost' => $shippingCost,
                 'total' => $total,
                 'shipping_name' => $shipping['shipping_name'],
@@ -265,7 +281,10 @@ class CheckoutService
                 $line['stock']->reduce($line['quantity']);
             }
 
-            $this->cartService->clearForUser($user->id);
+            CartItem::query()
+                ->where('user_id', $user->id)
+                ->whereIn('id', $rows->pluck('id'))
+                ->delete();
 
             $order = $order->fresh(['items']);
 

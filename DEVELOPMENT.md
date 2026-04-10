@@ -18,9 +18,9 @@ npm run dev
 ```
 *(Dibutuhkan agar styling Tailwind CSS dan Alpine.js dikompilasi secara real-time).*
 
-**Terminal 3: Ngrok (Untuk Webhook DOKU & Google Login Callback)**
+**Terminal 3: Localtunnel (Untuk Webhook DOKU & Google Login Callback)**
 ```bash
-ngrok http 8000
+npx localtunnel --port 8000 --subdomain skinbae-id
 ```
 *(Penting: DOKU dan Google membutuhkan URL HTTPS yang valid untuk mengirimkan notifikasi/callback. Salin URL Forwarding dari Ngrok, misalnya `https://1a2b3c4d.ngrok.app`).*
 

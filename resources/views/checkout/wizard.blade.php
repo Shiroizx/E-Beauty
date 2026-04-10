@@ -158,6 +158,42 @@
                     </div>
                 </form>
             @else
+                <div class="space-y-4">
+                    <div class="overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-md">
+                        <div class="border-b border-brand-50 px-5 pb-0 pt-5">
+                            <h2 class="text-base font-bold text-brand-900"><i class="fas fa-tag me-2 text-amber-500" aria-hidden="true"></i>Kode promo</h2>
+                            <p class="mt-1 text-xs text-neutral-600">Masukkan kode dari halaman beranda atau newsletter.</p>
+                        </div>
+                        <div class="space-y-3 p-5">
+                            @if(session('success'))
+                                <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800" role="status">{{ session('success') }}</div>
+                            @endif
+                            <form action="{{ route('checkout.apply-promo') }}" method="POST" class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                                @csrf
+                                <div class="min-w-0 flex-1">
+                                    <label class="mb-1 block text-xs font-semibold text-brand-800" for="promo_code">Kode</label>
+                                    <input type="text" name="promo_code" id="promo_code" value="{{ old('promo_code', is_string($checkoutPromoCode ?? null) ? $checkoutPromoCode : '') }}" placeholder="Contoh: BEAUTY20" autocomplete="off" class="input-brand w-full uppercase placeholder:normal-case">
+                                    @error('promo_code')
+                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <button type="submit" class="btn-brand shrink-0 px-5 py-2.5 text-sm">Terapkan</button>
+                            </form>
+                            @if(!empty($checkoutPromoCode))
+                                <form action="{{ route('checkout.clear-promo') }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="text-xs font-semibold text-red-600 underline decoration-red-200 hover:text-red-700">Hapus kode promo</button>
+                                </form>
+                            @endif
+                            @if(!empty($promoApplyError))
+                                <p class="text-xs text-amber-800"><i class="fas fa-circle-info me-1" aria-hidden="true"></i>{{ $promoApplyError }}</p>
+                            @endif
+                            @if(($promoDiscount ?? 0) > 0)
+                                <p class="text-xs font-semibold text-emerald-700">Diskon terpasang: − Rp {{ number_format($promoDiscount, 0, ',', '.') }}</p>
+                            @endif
+                        </div>
+                    </div>
+
                 <form action="{{ route('checkout.step3') }}" method="POST" class="overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-md" novalidate>
                     @csrf
                     <div class="border-b border-brand-50 px-5 pb-0 pt-6">
@@ -201,6 +237,7 @@
                         <button type="submit" class="btn-brand py-2.5 text-sm"><i class="fas fa-lock me-2" aria-hidden="true"></i> Bayar &amp; buat pesanan</button>
                     </div>
                 </form>
+                </div>
             @endif
         </div>
 
@@ -224,10 +261,18 @@
                     <span class="text-neutral-600">Subtotal</span>
                     <span class="font-semibold text-brand-900">Rp {{ number_format($subtotal, 0, ',', '.') }}</span>
                 </div>
+                @if(($promoDiscount ?? 0) > 0)
+                    <div class="mt-2 flex justify-between text-sm text-emerald-700">
+                        <span>Diskon promo @if(!empty($checkoutPromoCode))<span class="font-mono text-xs">({{ $checkoutPromoCode }})</span>@endif</span>
+                        <span class="font-semibold">− Rp {{ number_format($promoDiscount, 0, ',', '.') }}</span>
+                    </div>
+                @endif
                 <div class="mt-2 flex justify-between text-sm">
                     <span class="text-neutral-600">Ongkir</span>
                     <span class="font-semibold text-brand-900" id="summary_shipping_cost">
-                        @if($shippingCost > 0)
+                        @if(!($shippingKnown ?? false))
+                            <span class="font-normal text-neutral-500">{{ $step === 2 ? 'Pilih layanan di bawah' : 'Pilih di langkah alamat' }}</span>
+                        @elseif($shippingCost > 0)
                             Rp {{ number_format($shippingCost, 0, ',', '.') }}
                         @else
                             <span class="text-emerald-600">Gratis</span>
@@ -240,7 +285,12 @@
                     </div>
                 @endif
                 <div class="mt-4 flex items-center justify-between border-t border-brand-200 pt-4">
-                    <span class="font-bold text-brand-900">Total</span>
+                    <div>
+                        <span class="font-bold text-brand-900">Total</span>
+                        @if(!($shippingKnown ?? false))
+                            <p class="mt-0.5 text-[11px] font-normal text-neutral-500" data-checkout-total-note>Belum termasuk ongkir</p>
+                        @endif
+                    </div>
                     <span class="text-xl font-bold text-gradient-brand" id="summary_total">Rp {{ number_format($total, 0, ',', '.') }}</span>
                 </div>
             </div>
@@ -470,8 +520,9 @@
         
         // Expose setService to window to update Total
         let currentRates = {};
-        const subtotal = {{ $subtotal }};
-        const freeShippingAt = {{ $freeShippingAt }};
+        const subtotal = {{ (float) $subtotal }};
+        const promoDiscount = {{ (float) ($promoDiscount ?? 0) }};
+        const freeShippingAt = {{ (float) $freeShippingAt }};
 
         window.setService = function(val) {
             document.getElementById('shipping_service').value = val;
@@ -492,16 +543,26 @@
                 costElement.innerHTML = `<span class="text-emerald-600">Gratis</span>`;
             }
 
-            const total = subtotal + cost;
+            const netSub = Math.max(0, subtotal - promoDiscount);
+            const total = netSub + cost;
             totalElement.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+            const totalWrap = totalElement.closest('.mt-4');
+            if (totalWrap) {
+                const note = totalWrap.querySelector('[data-checkout-total-note]');
+                if (note) note.remove();
+            }
         }
 
-        // Intercept API rates to store globally
-        const originalRenderShippingOptions = renderShippingOptions;
-        renderShippingOptions = function(rates) {
-            currentRates = rates;
-            originalRenderShippingOptions(rates);
-        };
+        @if($step === 2)
+        // Intercept API rates to store globally (only defined on step 2)
+        if (typeof renderShippingOptions === 'function') {
+            const originalRenderShippingOptions = renderShippingOptions;
+            renderShippingOptions = function(rates) {
+                currentRates = rates;
+                originalRenderShippingOptions(rates);
+            };
+        }
+        @endif
     });
 </script>
 @endpush

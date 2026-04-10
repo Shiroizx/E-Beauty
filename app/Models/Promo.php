@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class Promo extends Model
 {
@@ -120,19 +120,31 @@ class Promo extends Model
     }
 
     /**
-     * Check if user can use this promo
+     * Jumlah pesanan (bukan dibatalkan) milik user yang sudah memakai kode promo ini.
      */
-    public function canBeUsedBy($userId)
+    public function userUsageCount(int $userId): int
     {
-        if (!$this->is_available) {
+        return Order::query()
+            ->where('user_id', $userId)
+            ->whereNotNull('promo_code')
+            ->where('promo_code', '!=', '')
+            ->whereRaw('UPPER(TRIM(promo_code)) = ?', [strtoupper(trim((string) $this->code))])
+            ->where('status', '!=', 'cancelled')
+            ->count();
+    }
+
+    /**
+     * Check if user can use this promo (global + batas per user lewat usage_per_user).
+     */
+    public function canBeUsedBy($userId): bool
+    {
+        if (! $this->is_available) {
             return false;
         }
 
-        // Count user's usage of this promo
-        // Note: This would require a promo_usages table in a real application
-        // For now, we'll just check if promo is available
-        
-        return true;
+        $perUser = max(1, (int) $this->usage_per_user);
+
+        return $this->userUsageCount((int) $userId) < $perUser;
     }
 
     /**

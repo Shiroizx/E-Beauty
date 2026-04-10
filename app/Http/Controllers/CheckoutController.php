@@ -6,6 +6,7 @@ use App\Exceptions\CheckoutException;
 use App\Models\Order;
 use App\Services\CartService;
 use App\Services\CheckoutService;
+use App\Services\PromoService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -15,7 +16,8 @@ class CheckoutController extends Controller
 
     public function __construct(
         protected CartService $cartService,
-        protected CheckoutService $checkoutService
+        protected CheckoutService $checkoutService,
+        protected PromoService $promoService
     ) {}
 
     public function index()
@@ -161,11 +163,14 @@ class CheckoutController extends Controller
 
         $payload = $this->buildOrderPayload($wizard);
 
+        $promoCode = $request->session()->get('checkout_promo_code');
+
         try {
             $result = $this->checkoutService->placeOrder(
                 $request->user(),
                 $payload,
-                $request->input('payment_method')
+                $request->input('payment_method'),
+                is_string($promoCode) ? $promoCode : null
             );
         } catch (CheckoutException $e) {
             return redirect()
@@ -173,6 +178,7 @@ class CheckoutController extends Controller
                 ->with('error', $e->getMessage());
         }
 
+        $request->session()->forget('checkout_promo_code');
         $request->session()->forget(self::WIZARD_KEY);
         $order = $result['order'];
 
@@ -240,9 +246,17 @@ class CheckoutController extends Controller
     protected function computeTotals($lines, array $wizard = []): array
     {
         $subtotal = (float) $lines->sum(fn ($line) => $line->product->final_price * $line->quantity);
-        
+
+        $freeShippingAt = (float) config('checkout.free_shipping_subtotal', 500_000);
+        $freeShippingBySubtotal = $subtotal >= $freeShippingAt;
+
         $shippingCost = 0.0;
-        if (!empty($wizard['shipping']['shipping_service'])) {
+        $shippingKnown = false;
+
+        if ($freeShippingBySubtotal) {
+            $shippingCost = 0.0;
+            $shippingKnown = true;
+        } elseif (! empty($wizard['shipping']['shipping_service'])) {
             $totalItems = $lines->sum('quantity');
             $cost = $this->checkoutService->validateShippingSelection(
                 $wizard['shipping']['shipping_service'],
@@ -253,18 +267,87 @@ class CheckoutController extends Controller
             );
             if ($cost !== null) {
                 $shippingCost = $cost;
+                $shippingKnown = true;
             }
         }
 
-        $freeShippingAt = (float) config('checkout.free_shipping_subtotal', 500_000);
-        if ($subtotal >= $freeShippingAt) {
-            $shippingCost = 0.0;
+        $promoDiscount = 0.0;
+        $checkoutPromoCode = session('checkout_promo_code');
+        $promoApplyError = null;
+        $productIds = $lines->pluck('product_id')->unique()->values()->all();
+        if (is_string($checkoutPromoCode) && $checkoutPromoCode !== '' && auth()->check()) {
+            $validation = $this->promoService->validatePromoCode(
+                strtoupper(trim($checkoutPromoCode)),
+                auth()->id(),
+                $subtotal,
+                $productIds
+            );
+            if ($validation['valid']) {
+                $promoDiscount = (float) $validation['discount_amount'];
+            } else {
+                $promoApplyError = $validation['message'];
+            }
         }
 
-        $total = $subtotal + $shippingCost;
+        $total = round(max(0, $subtotal - $promoDiscount) + $shippingCost, 2);
         $amountToFreeShipping = max(0, $freeShippingAt - $subtotal);
 
-        return compact('subtotal', 'shippingCost', 'total', 'freeShippingAt', 'amountToFreeShipping');
+        return compact(
+            'subtotal',
+            'shippingCost',
+            'shippingKnown',
+            'total',
+            'freeShippingAt',
+            'amountToFreeShipping',
+            'promoDiscount',
+            'checkoutPromoCode',
+            'promoApplyError'
+        );
+    }
+
+    public function applyPromo(Request $request)
+    {
+        $lines = $this->cartService->getSelectedLineItems();
+        if ($lines->isEmpty()) {
+            return redirect()->route('cart.index')->with('error', 'Keranjang kosong.');
+        }
+
+        $wizard = $request->session()->get(self::WIZARD_KEY, []);
+        if (empty($wizard['shipping'])) {
+            return redirect()
+                ->route('checkout.step', ['step' => 2])
+                ->with('error', 'Lengkapi alamat pengiriman sebelum memakai promo.');
+        }
+
+        $data = $request->validate([
+            'promo_code' => ['required', 'string', 'max:50'],
+        ]);
+
+        $subtotal = (float) $lines->sum(fn ($line) => $line->product->final_price * $line->quantity);
+        $productIds = $lines->pluck('product_id')->unique()->values()->all();
+        $code = strtoupper(trim($data['promo_code']));
+
+        $validation = $this->promoService->validatePromoCode(
+            $code,
+            $request->user()->id,
+            $subtotal,
+            $productIds
+        );
+
+        if (! $validation['valid']) {
+            return back()->withErrors(['promo_code' => $validation['message']])->withInput();
+        }
+
+        $request->session()->put('checkout_promo_code', $validation['promo']->code);
+
+        return back()->with('success', $validation['message'] ?? 'Promo diterapkan.');
+    }
+
+    public function clearPromo(Request $request)
+    {
+        $request->session()->forget('checkout_promo_code');
+
+        return back()->with('success', 'Kode promo dihapus.');
     }
 
     public function calculateShipping(Request $request)

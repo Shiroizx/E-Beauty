@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Order;
 use App\Models\Review;
-use App\Models\Product;
 use Illuminate\Support\Facades\Storage;
 
 class ReviewService
@@ -25,11 +25,12 @@ class ReviewService
         $review = Review::create([
             'product_id' => $data['product_id'],
             'user_id' => $data['user_id'],
+            'order_id' => $data['order_id'] ?? null,
             'rating' => $data['rating'],
             'comment' => $data['comment'] ?? null,
             'images' => $imagePaths,
             'is_verified_purchase' => $data['is_verified_purchase'] ?? false,
-            'is_approved' => $data['auto_approve'] ?? false, // Auto-approve or require moderation
+            'is_approved' => $data['auto_approve'] ?? false,
         ]);
 
         return $review;
@@ -79,7 +80,7 @@ class ReviewService
     public function getPendingReviews()
     {
         return Review::pending()
-            ->with(['product', 'user'])
+            ->with(['product', 'user', 'order'])
             ->orderByDesc('created_at')
             ->paginate(20);
     }
@@ -167,27 +168,138 @@ class ReviewService
     }
 
     /**
-     * Check if user can review product
+     * Status ulasan untuk satu baris pesanan (UI).
+     *
+     * @return 'locked'|'open'|'pending'|'approved'
      */
-    public function canUserReview(int $userId, int $productId)
+    public function getReviewStateForOrderLine(Order $order, int $userId, int $productId): string
     {
-        // Check if user already reviewed this product
-        $existingReview = Review::where('user_id', $userId)
+        if ($order->status !== 'completed') {
+            return 'locked';
+        }
+
+        $review = Review::query()
+            ->where('user_id', $userId)
+            ->where('product_id', $productId)
+            ->first();
+
+        if (! $review) {
+            return 'open';
+        }
+
+        return $review->is_approved ? 'approved' : 'pending';
+    }
+
+    /**
+     * Map product_id => state untuk semua item di pesanan (unik per produk).
+     *
+     * @return array<int, string>
+     */
+    public function getReviewStatesForOrder(Order $order, int $userId): array
+    {
+        $map = [];
+        foreach ($order->items as $item) {
+            $pid = (int) $item->product_id;
+            if (! isset($map[$pid])) {
+                $map[$pid] = $this->getReviewStateForOrderLine($order, $userId, $pid);
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * User punya minimal satu pesanan selesai yang berisi produk ini.
+     */
+    public function userHasCompletedPurchaseOfProduct(int $userId, int $productId): bool
+    {
+        return Order::query()
+            ->where('user_id', $userId)
+            ->where('status', 'completed')
+            ->whereHas('items', fn ($q) => $q->where('product_id', $productId))
+            ->exists();
+    }
+
+    /**
+     * Validasi pesanan untuk mengirim ulasan (pemilik, selesai, berisi produk).
+     */
+    public function findOrderEligibleForReview(int $userId, string $orderNumber, int $productId): ?Order
+    {
+        return Order::query()
+            ->where('user_id', $userId)
+            ->where('order_number', $orderNumber)
+            ->where('status', 'completed')
+            ->whereHas('items', fn ($q) => $q->where('product_id', $productId))
+            ->first();
+    }
+
+    /**
+     * Check if user can review product (setelah validasi pesanan di controller).
+     */
+    public function canUserReview(int $userId, int $productId): array
+    {
+        $exists = Review::where('user_id', $userId)
             ->where('product_id', $productId)
             ->exists();
 
-        if ($existingReview) {
+        if ($exists) {
             return [
                 'can_review' => false,
-                'message' => 'Anda sudah memberikan review untuk produk ini',
+                'message' => 'Anda sudah pernah mengirim ulasan untuk produk ini.',
             ];
         }
 
-        // In a real application, you might also check if user purchased the product
+        if (! $this->userHasCompletedPurchaseOfProduct($userId, $productId)) {
+            return [
+                'can_review' => false,
+                'message' => 'Ulasan hanya dapat diberikan setelah pesanan Anda berstatus Selesai dan berisi produk ini.',
+            ];
+        }
 
         return [
             'can_review' => true,
-            'message' => 'Anda dapat memberikan review',
+            'message' => 'Anda dapat memberikan ulasan.',
+        ];
+    }
+
+    /**
+     * Teks singkat untuk PDP (form ulasan hanya dari halaman pesanan selesai).
+     *
+     * @return array{key: string, message: string}
+     */
+    public function productPageReviewHint(?int $userId, int $productId): array
+    {
+        if ($userId === null) {
+            return [
+                'key' => 'guest',
+                'message' => 'Ulasan ditampilkan dari pembeli yang telah menyelesaikan pesanan.',
+            ];
+        }
+
+        $review = Review::query()
+            ->where('user_id', $userId)
+            ->where('product_id', $productId)
+            ->first();
+
+        if ($review) {
+            return [
+                'key' => $review->is_approved ? 'approved' : 'pending',
+                'message' => $review->is_approved
+                    ? 'Terima kasih — ulasan Anda sudah ditampilkan.'
+                    : 'Terima kasih — ulasan Anda telah kami terima.',
+            ];
+        }
+
+        if ($this->userHasCompletedPurchaseOfProduct($userId, $productId)) {
+            return [
+                'key' => 'eligible',
+                'message' => 'Tulis ulasan dari Pesanan Saya → buka detail pesanan berstatus Selesai.',
+            ];
+        }
+
+        return [
+            'key' => 'not_eligible',
+            'message' => 'Setelah pesanan berstatus Selesai, Anda dapat memberi rating dan komentar dari halaman detail pesanan.',
         ];
     }
 }

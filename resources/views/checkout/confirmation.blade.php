@@ -123,6 +123,12 @@
                 <span class="text-neutral-600">Subtotal</span>
                 <span>{{ $order->formatted_subtotal }}</span>
             </div>
+            @if((float) $order->discount_amount > 0)
+                <div class="mt-2 flex justify-between text-sm text-emerald-700">
+                    <span>Diskon promo @if($order->promo_code)<span class="font-mono text-xs">({{ $order->promo_code }})</span>@endif</span>
+                    <span>− {{ $order->formatted_discount_amount }}</span>
+                </div>
+            @endif
             <div class="mt-2 flex justify-between text-sm">
                 <span class="text-neutral-600">Ongkir</span>
                 <span>{{ $order->formatted_shipping }}</span>

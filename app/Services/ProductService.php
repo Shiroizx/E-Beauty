@@ -220,9 +220,10 @@ class ProductService
             'skinTypes',
             'reviews' => function ($query) {
                 $query->approved()
-                      ->with('user')
-                      ->orderByDesc('created_at');
-            }
+                    ->with('user')
+                    ->orderByDesc('created_at')
+                    ->limit(25);
+            },
         ])->where('slug', $slug)
           ->firstOrFail();
     }

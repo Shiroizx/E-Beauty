@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\ReviewService;
 use App\Http\Requests\StoreReviewRequest;
+use App\Models\Order;
+use App\Services\ReviewService;
 use Illuminate\Http\Request;
 
 class ReviewController extends Controller
@@ -39,26 +40,29 @@ class ReviewController extends Controller
      */
     public function store(StoreReviewRequest $request)
     {
-        // Check if user can review this product
-        $canReview = $this->reviewService->canUserReview(
-            auth()->id(),
-            $request->product_id
-        );
-
-        if (!$canReview['can_review']) {
-            return back()->with('error', $canReview['message']);
-        }
-
         $data = $request->validated();
+
+        $order = Order::query()
+            ->where('user_id', auth()->id())
+            ->where('order_number', $data['order_number'])
+            ->firstOrFail();
+
         $data['user_id'] = auth()->id();
-        $data['auto_approve'] = false; // Require moderation
+        $data['order_id'] = $order->id;
+        $data['is_verified_purchase'] = true;
+        $data['auto_approve'] = false;
+        unset($data['order_number']);
 
         try {
-            $review = $this->reviewService->createReview($data);
+            $this->reviewService->createReview($data);
 
-            return back()->with('success', 'Review Anda berhasil dikirim dan menunggu persetujuan admin');
+            return redirect()
+                ->route('orders.show', $order->order_number)
+                ->with('success', 'Terima kasih, ulasan Anda telah terkirim.');
         } catch (\Exception $e) {
-            return back()->with('error', 'Terjadi kesalahan saat mengirim review');
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat mengirim ulasan. Silakan coba lagi.');
         }
     }
 }

@@ -43,12 +43,14 @@ class PromoService
             }
         }
 
-        // Check user-specific usage limit
-        // Note: In a real app, you'd check a promo_usages table
-        if (!$promo->canBeUsedBy($userId)) {
+        $usedByUser = $promo->userUsageCount($userId);
+        $perUserLimit = max(1, (int) $promo->usage_per_user);
+        if ($usedByUser >= $perUserLimit) {
             return [
                 'valid' => false,
-                'message' => 'Anda sudah mencapai batas penggunaan promo ini',
+                'message' => $perUserLimit === 1
+                    ? 'Anda sudah pernah menggunakan kode promo ini.'
+                    : 'Anda sudah mencapai batas penggunaan kode promo ini untuk akun Anda.',
             ];
         }
 
@@ -109,6 +111,26 @@ class PromoService
     }
 
     /**
+     * Promo aktif untuk ditampilkan di beranda (pengguna login).
+     */
+    public function getAvailablePromosForHome(int $limit = 10)
+    {
+        return Promo::query()
+            ->available()
+            ->withCount('products')
+            ->with([
+                'products' => function ($q) {
+                    $q->select('products.id', 'products.name', 'products.slug')
+                        ->orderBy('products.name')
+                        ->limit(6);
+                },
+            ])
+            ->orderBy('end_date')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
      * Get promo details by code
      */
     public function getPromoByCode(string $code)
@@ -122,9 +144,6 @@ class PromoService
     public function markAsUsed(Promo $promo, int $userId)
     {
         $promo->incrementUsage();
-
-        // In a real application, you'd also create a record in promo_usages table
-        // to track which user used the promo
 
         return true;
     }

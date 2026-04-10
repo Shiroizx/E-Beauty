@@ -21,7 +21,7 @@ class ReviewController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Review::with(['product', 'user']);
+        $query = Review::with(['product', 'user', 'order']);
 
         // Filter by status
         $status = $request->input('status', 'all');
@@ -44,6 +44,16 @@ class ReviewController extends Controller
         $reviews = $query->latest()->paginate(20);
 
         return view('admin.reviews.index', compact('reviews', 'status'));
+    }
+
+    /**
+     * Detail satu review (moderasi).
+     */
+    public function show(Review $review)
+    {
+        $review->load(['product', 'user', 'order']);
+
+        return view('admin.reviews.show', compact('review'));
     }
 
     /**

@@ -1,4 +1,5 @@
 /.phpunit.cache
+.phpunit.result.cache
 /node_modules
 # /public/build   <-- Dikomentari agar folder build Vite ikut ter-commit ke Git untuk Shared Hosting
 /public/hot

@@ -208,6 +208,10 @@
         </div>
     </section>
 
+    @auth
+        <x-promo.home-strip :promos="$homePromos" />
+    @endauth
+
     <!-- ======================== FEATURED PRODUCTS ======================== -->
     <section class="py-20 lg:py-28" aria-labelledby="featured-heading">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

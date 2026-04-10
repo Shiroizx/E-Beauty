@@ -3,20 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Services\ProductService;
+use App\Services\ReviewService;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\SkinType;
 use App\Models\WishlistItem;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
-    protected $productService;
-
-    public function __construct(ProductService $productService)
-    {
-        $this->productService = $productService;
-    }
+    public function __construct(
+        protected ProductService $productService,
+        protected ReviewService $reviewService,
+    ) {}
 
     /**
      * Display product catalog with filters
@@ -76,7 +76,9 @@ class ProductController extends Controller
                 ->where('product_id', $product->id)
                 ->exists();
 
-        return view('products.show', compact('product', 'relatedProducts', 'inWishlist'));
+        $reviewHint = $this->reviewService->productPageReviewHint(auth()->id(), $product->id);
+
+        return view('products.show', compact('product', 'relatedProducts', 'inWishlist', 'reviewHint'));
     }
 
     /**
@@ -100,8 +102,15 @@ class ProductController extends Controller
      */
     public function checkAvailability(Request $request)
     {
-        $productId = $request->input('product_id');
-        $availability = $this->productService->checkAvailability($productId);
+        $validated = $request->validate([
+            'product_id' => [
+                'required',
+                'integer',
+                Rule::exists('products', 'id')->whereNull('deleted_at'),
+            ],
+        ]);
+
+        $availability = $this->productService->checkAvailability($validated['product_id']);
 
         return response()->json($availability);
     }

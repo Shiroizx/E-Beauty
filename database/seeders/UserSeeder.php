@@ -13,13 +13,15 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create admin user
-        User::create([
+        // Create admin user (role diset di luar mass assignment agar tidak bisa diubah lewat request biasa)
+        $admin = User::create([
             'name' => 'Admin E-Beauty',
             'email' => 'admin@ebeauty.com',
             'password' => Hash::make('password'),
             'email_verified_at' => now(),
         ]);
+        $admin->role = 'admin';
+        $admin->save();
 
         // Create regular users
         User::create([

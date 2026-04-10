@@ -209,7 +209,7 @@
     </div>
 
     {{-- ═══════════ Product Detail Tabs ═══════════ --}}
-    <div class="pdp-tabs pdp-entrance" x-data="{ tab: 'desc' }" style="animation-delay: 0.3s;">
+    <div class="pdp-tabs pdp-entrance" x-data="{ tab: 'desc' }" x-init="if (window.location.hash === '#ulasan') { tab = 'reviews' }" style="animation-delay: 0.3s;">
         <nav class="pdp-tabs__nav" aria-label="Detail produk">
             <button type="button"
                     class="pdp-tabs__btn"
@@ -238,6 +238,16 @@
                     @click="tab = 'specs'">
                 <i class="fas fa-list-ul me-1.5 text-xs" aria-hidden="true"></i>
                 Spesifikasi
+            </button>
+            <button type="button"
+                    class="pdp-tabs__btn"
+                    :class="{ 'pdp-tabs__btn--active': tab === 'reviews' }"
+                    @click="tab = 'reviews'">
+                <i class="fas fa-star me-1.5 text-xs" aria-hidden="true"></i>
+                Ulasan
+                @if($product->reviews->count() > 0)
+                    <span class="ms-1 rounded-full bg-brand-100 px-1.5 py-0.5 text-[0.65rem] font-bold text-brand-700">{{ $product->reviews->count() }}</span>
+                @endif
             </button>
         </nav>
 
@@ -283,6 +293,137 @@
                     Petunjuk pemakaian belum tersedia.
                 </div>
             @endif
+        </div>
+
+        {{-- Tab: Ulasan --}}
+        @php
+            $pdpReviews = $product->reviews;
+            $pdpReviewCount = $pdpReviews->count();
+            $pdpAvgRating = $pdpReviewCount > 0 ? round((float) $pdpReviews->avg('rating'), 1) : 0.0;
+            $pdpDist = [];
+            for ($br = 5; $br >= 1; $br--) {
+                $pdpDist[$br] = $pdpReviewCount > 0
+                    ? round(100 * $pdpReviews->where('rating', $br)->count() / $pdpReviewCount)
+                    : 0;
+            }
+        @endphp
+        <div
+            id="ulasan"
+            class="pdp-tabs__panel pdp-reviews w-full max-w-none"
+            x-show="tab === 'reviews'"
+            x-cloak
+            x-data="{
+                lightbox: null,
+                openLb(src) { this.lightbox = src; document.documentElement.classList.add('pdp-reviews-no-scroll'); },
+                closeLb() { this.lightbox = null; document.documentElement.classList.remove('pdp-reviews-no-scroll'); }
+            }"
+            @keydown.escape.window="if (lightbox) closeLb()"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-2"
+            x-transition:enter-end="opacity-100 translate-y-0"
+        >
+            <section class="pdp-reviews__wrap" aria-label="Ulasan pembeli">
+                <div class="pdp-reviews__notice">
+                    <span class="pdp-reviews__notice-icon" aria-hidden="true"><i class="fas fa-circle-check"></i></span>
+                    <p>{{ $reviewHint['message'] ?? 'Ulasan berasal dari pembeli yang telah menyelesaikan pesanan.' }}</p>
+                </div>
+
+                @if($pdpReviewCount === 0)
+                    <div class="pdp-reviews__empty">
+                        <div class="pdp-reviews__empty-icon" aria-hidden="true"><i class="fas fa-star-half-alt"></i></div>
+                        <p class="pdp-reviews__empty-title">Belum ada ulasan</p>
+                        <p class="pdp-reviews__empty-text">Bagikan pengalaman Anda setelah pesanan berstatus Selesai — ulasan akan tampil di halaman ini.</p>
+                    </div>
+                @else
+                    <div class="pdp-reviews__summary">
+                        <div class="pdp-reviews__score-card">
+                            <div class="pdp-reviews__score-main">
+                                <span class="pdp-reviews__score-num" aria-hidden="true">{{ number_format($pdpAvgRating, 1) }}</span>
+                                <div class="pdp-reviews__score-meta">
+                                    <div class="pdp-reviews__score-stars" aria-label="Rata-rata {{ $pdpAvgRating }} dari 5 bintang">
+                                        @for($i = 1; $i <= 5; $i++)
+                                            <i class="fas fa-star {{ $i <= round($pdpAvgRating) ? 'pdp-reviews__star--on' : 'pdp-reviews__star--off' }}" aria-hidden="true"></i>
+                                        @endfor
+                                    </div>
+                                    <p class="pdp-reviews__score-label">Berdasarkan <strong>{{ $pdpReviewCount }}</strong> ulasan</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pdp-reviews__bars" aria-label="Distribusi rating">
+                            @foreach([5,4,3,2,1] as $starN)
+                                <div class="pdp-reviews__bar-row">
+                                    <span class="pdp-reviews__bar-label">{{ $starN }} <i class="fas fa-star text-[0.55rem] text-amber-400" aria-hidden="true"></i></span>
+                                    <div class="pdp-reviews__bar-track">
+                                        <div class="pdp-reviews__bar-fill" style="width: {{ $pdpDist[$starN] }}%"></div>
+                                    </div>
+                                    <span class="pdp-reviews__bar-pct">{{ $pdpDist[$starN] }}%</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <ul class="pdp-reviews__list">
+                        @foreach($pdpReviews as $rev)
+                            @php
+                                $revName = $rev->user->name ?? 'Pengguna';
+                                $revInitial = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr(trim($revName), 0, 1));
+                                $revImages = $rev->image_urls ?? [];
+                            @endphp
+                            <li class="pdp-reviews__card">
+                                <div class="pdp-reviews__avatar" aria-hidden="true">{{ $revInitial }}</div>
+                                <div class="pdp-reviews__card-stack">
+                                    <div class="pdp-reviews__card-title-row">
+                                        <p class="pdp-reviews__author">{{ $revName }}</p>
+                                        @if($rev->is_verified_purchase)
+                                            <span class="pdp-reviews__verified"><i class="fas fa-check-circle" aria-hidden="true"></i> Terverifikasi</span>
+                                        @endif
+                                    </div>
+                                    <time class="pdp-reviews__date" datetime="{{ $rev->created_at->toIso8601String() }}">{{ $rev->created_at->translatedFormat('d M Y') }}</time>
+                                    <div class="pdp-reviews__card-rating" aria-label="Rating {{ $rev->rating }} dari 5">
+                                        @for($i = 1; $i <= 5; $i++)
+                                            <i class="fas fa-star {{ $i <= $rev->rating ? 'text-amber-400' : 'text-neutral-200' }} text-sm" aria-hidden="true"></i>
+                                        @endfor
+                                    </div>
+                                @if($rev->comment)
+                                    <p class="pdp-reviews__comment">{{ $rev->comment }}</p>
+                                @endif
+                                @if(count($revImages) > 0)
+                                    <div class="pdp-reviews__photos" role="group" aria-label="Foto ulasan">
+                                        @foreach($revImages as $imgUrl)
+                                            <button
+                                                type="button"
+                                                class="pdp-reviews__photo-btn"
+                                                @click="openLb($event.currentTarget.querySelector('img').src)"
+                                            >
+                                                <img src="{{ $imgUrl }}" alt="Lampiran ulasan {{ $loop->iteration }}" class="pdp-reviews__photo-img" width="160" height="160" loading="lazy" decoding="async">
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @endif
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </section>
+
+            <template x-teleport="body">
+                <div
+                    class="pdp-reviews__lightbox"
+                    x-show="lightbox !== null"
+                    x-cloak
+                    x-transition.opacity.duration.200ms
+                    @click.self="closeLb()"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Perbesar foto ulasan"
+                >
+                    <button type="button" class="pdp-reviews__lightbox-close" @click="closeLb()" aria-label="Tutup">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                    </button>
+                    <img :src="lightbox" alt="" class="pdp-reviews__lightbox-img">
+                </div>
+            </template>
         </div>
 
         {{-- Tab: Spesifikasi --}}

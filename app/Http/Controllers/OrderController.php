@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Services\ReviewService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +11,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OrderController extends Controller
 {
+    public function __construct(
+        protected ReviewService $reviewService
+    ) {}
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -81,8 +86,9 @@ class OrderController extends Controller
         $statuses = Order::STATUSES;
         $paymentStatuses = Order::PAYMENT_STATUSES;
         $trackingData = $order->tracking_data;
+        $itemReviewStates = $this->reviewService->getReviewStatesForOrder($order, $user->id);
 
-        return view('orders.show', compact('order', 'statuses', 'paymentStatuses', 'trackingData'));
+        return view('orders.show', compact('order', 'statuses', 'paymentStatuses', 'trackingData', 'itemReviewStates'));
     }
 
     public function invoice(string $orderNumber)

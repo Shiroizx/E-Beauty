@@ -109,6 +109,9 @@
 
     <div class="totals">
         <div class="totals-row"><span>Subtotal</span><span>{{ $order->formatted_subtotal }}</span></div>
+        @if((float) $order->discount_amount > 0)
+            <div class="totals-row"><span>Diskon promo @if($order->promo_code)({{ $order->promo_code }}) @endif</span><span>− {{ $order->formatted_discount_amount }}</span></div>
+        @endif
         <div class="totals-row"><span>Ongkos Kirim</span><span>{{ $order->formatted_shipping }}</span></div>
         <div class="totals-row grand"><span>Total</span><span>{{ $order->formatted_total }}</span></div>
     </div>

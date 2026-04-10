@@ -3,20 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Services\ProductService;
+use App\Services\PromoService;
 use App\Models\Brand;
 use App\Models\Category;
-use App\Models\SkinType;
-use App\Models\Product;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class HomeController extends Controller
 {
-    protected $productService;
-
-    public function __construct(ProductService $productService)
-    {
-        $this->productService = $productService;
-    }
+    public function __construct(
+        protected ProductService $productService,
+        protected PromoService $promoService
+    ) {}
 
     /**
      * Display the homepage
@@ -38,12 +35,22 @@ class HomeController extends Controller
             ->limit(8)
             ->get();
 
+        $homePromos = collect();
+        if (auth()->check()) {
+            $homePromos = Cache::remember(
+                'home_promos_v1',
+                now()->addSeconds(90),
+                fn () => $this->promoService->getAvailablePromosForHome(10)
+            );
+        }
+
         return view('home', compact(
             'featuredProducts',
             'newArrivals',
             'bestSellers',
             'categories',
-            'brands'
+            'brands',
+            'homePromos'
         ));
     }
 }

@@ -30,7 +30,9 @@ class Order extends Model
         'status',
         'payment_status',
         'payment_method',
+        'promo_code',
         'subtotal',
+        'discount_amount',
         'shipping_cost',
         'total',
         'shipping_name',
@@ -52,6 +54,7 @@ class Order extends Model
 
     protected $casts = [
         'subtotal' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
         'shipping_cost' => 'decimal:2',
         'total' => 'decimal:2',
         'payment_expired_at' => 'datetime',
@@ -173,6 +176,11 @@ class Order extends Model
     public function getFormattedShippingAttribute(): string
     {
         return $this->formatMoney($this->shipping_cost);
+    }
+
+    public function getFormattedDiscountAmountAttribute(): string
+    {
+        return $this->formatMoney($this->discount_amount);
     }
 
     public function getFormattedTotalAttribute(): string

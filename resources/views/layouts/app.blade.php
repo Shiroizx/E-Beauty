@@ -107,11 +107,11 @@
                                     <i class="far fa-heart w-4 text-brand-500" aria-hidden="true"></i>
                                     Wishlist
                                 </a>
-                                @if(Auth::user()->email === 'admin@skinbae.id')
+                                @if(Auth::user()->isStaff())
                                     <div class="my-1 border-t border-brand-100"></div>
-                                    <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-brand-50" role="menuitem">
+                                    <a href="{{ route(Auth::user()->staffDashboardRoute()) }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-brand-50" role="menuitem">
                                         <i class="fas fa-tachometer-alt w-4 text-brand-500" aria-hidden="true"></i>
-                                        Dashboard Admin
+                                        {{ Auth::user()->isSuperAdmin() ? 'Dashboard Super Admin' : 'Dashboard Admin' }}
                                     </a>
                                 @endif
                                 <div class="my-1 border-t border-brand-100"></div>

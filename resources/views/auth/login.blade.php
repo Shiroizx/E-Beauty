@@ -191,10 +191,16 @@
         <div class="form-container mx-auto w-full max-w-md">
 
             <!-- Header -->
-            <div class="mb-8">
+            <div class="mb-6">
                 <h1 class="text-3xl font-black text-neutral-900 tracking-tight">Masuk</h1>
                 <p class="mt-2 text-neutral-500">Selamat datang kembali! Silakan masuk ke akun Anda.</p>
             </div>
+
+            @if(session('success'))
+                <div class="error-msg mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800" role="status">
+                    <i class="fas fa-circle-check me-2" aria-hidden="true"></i>{{ session('success') }}
+                </div>
+            @endif
 
             <!-- Error Alert -->
             @if($errors->any())
@@ -210,8 +216,9 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('login') }}" id="loginForm" novalidate x-data="loginForm()">
+            <form method="POST" action="{{ route('login') }}" id="loginForm" class="relative" novalidate x-data="loginForm()">
                 @csrf
+                <x-auth.honeypot-field />
 
                 <!-- Email -->
                 <div class="mb-5 relative">
@@ -281,6 +288,10 @@
                     </a>
                 </div>
 
+                <div class="mb-6">
+                    <x-auth.captcha-field :captcha="$captcha" />
+                </div>
+
                 <!-- Submit -->
                 <button type="submit" class="btn-login relative w-full rounded-2xl py-3.5 text-sm font-bold text-white shadow-lg shadow-brand-500/20" :class="{ 'loading': loading }" :disabled="loading">
                     <span class="flex items-center justify-center gap-2">
@@ -323,35 +334,6 @@
     </div>
 </div>
 
-<!-- Forgot Password Modal -->
-<div x-show="showForgotModal" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-    role="dialog" aria-modal="true" aria-labelledby="forgot-title"
-    x-cloak>
-    <div class="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl" @click.stop>
-        <div class="mb-1 text-center">
-            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50">
-                <i class="fas fa-key text-xl text-brand-500" aria-hidden="true"></i>
-            </div>
-            <h2 id="forgot-title" class="text-xl font-bold text-neutral-900">Lupa Kata Sandi?</h2>
-            <p class="mt-2 text-sm text-neutral-500">Masukkan email Anda dan kami akan kirim tautan reset sandi.</p>
-        </div>
-        <form @submit.prevent="submitForgot()" class="mt-6">
-            <input type="email" x-model="forgotEmail" required placeholder="nama@email.com" class="w-full rounded-2xl border-2 border-brand-100 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100" aria-label="Email untuk reset sandi">
-            <div class="mt-4 flex gap-3">
-                <button type="button" @click="showForgotModal = false" class="flex-1 rounded-2xl border-2 border-brand-100 py-3 text-sm font-semibold text-neutral-600 transition hover:bg-brand-50">Batal</button>
-                <button type="submit" class="btn-login flex-1 rounded-2xl py-3 text-sm font-bold text-white" :class="{ 'loading': forgotLoading }">
-                    <span class="flex items-center justify-center gap-2"><i class="fas fa-paper-plane" aria-hidden="true"></i> Kirim</span>
-                    <div class="spinner" aria-hidden="true"></div>
-                </button>
-            </div>
-            <p x-show="forgotSent" x-transition class="mt-3 text-center text-sm text-emerald-600">
-                <i class="fas fa-check-circle me-1" aria-hidden="true"></i> Tautan reset sudah dikirim ke email Anda!
-            </p>
-        </form>
-    </div>
-</div>
-
 @endsection
 
 @push('scripts')
@@ -362,10 +344,6 @@ function loginForm() {
         showPassword: false,
         emailError: '',
         passwordError: '',
-        showForgotModal: false,
-        forgotEmail: '',
-        forgotLoading: false,
-        forgotSent: false,
 
         init() {
             const form = document.getElementById('loginForm');
@@ -411,15 +389,6 @@ function loginForm() {
         clearPasswordError() {
             this.passwordError = '';
         },
-
-        submitForgot() {
-            this.forgotLoading = true;
-            setTimeout(() => {
-                this.forgotLoading = false;
-                this.forgotSent = true;
-                this.forgotEmail = '';
-            }, 1500);
-        }
     }
 }
 </script>

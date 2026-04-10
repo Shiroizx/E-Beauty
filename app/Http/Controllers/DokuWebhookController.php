@@ -30,8 +30,8 @@ class DokuWebhookController extends Controller
         $requestTarget    = '/doku/notification';
 
         Log::info('DOKU Notification Received', [
-            'request_id' => $requestId,
-            'body'       => $rawBody,
+            'request_id'     => $requestId,
+            'content_length' => strlen($rawBody),
         ]);
 
         // Verify signature

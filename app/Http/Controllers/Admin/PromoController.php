@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Promo;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class PromoController extends Controller
 {
@@ -62,6 +63,8 @@ class PromoController extends Controller
             $promo->products()->attach($validated['product_ids']);
         }
 
+        Cache::forget('home_promos_v1');
+
         return redirect()->route('admin.promos.index')
             ->with('success', 'Promo berhasil ditambahkan');
     }
@@ -110,6 +113,8 @@ class PromoController extends Controller
             $promo->products()->detach();
         }
 
+        Cache::forget('home_promos_v1');
+
         return redirect()->route('admin.promos.index')
             ->with('success', 'Promo berhasil diupdate');
     }
@@ -120,6 +125,8 @@ class PromoController extends Controller
     public function destroy(Promo $promo)
     {
         $promo->delete();
+
+        Cache::forget('home_promos_v1');
 
         return redirect()->route('admin.promos.index')
             ->with('success', 'Promo berhasil dihapus');

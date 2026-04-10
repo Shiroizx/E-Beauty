@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cetak Struk Pengiriman</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600;700&display=swap');
+        @@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@@0,400;0,700;1,400&family=Inter:wght@@400;600;700&display=swap');
 
         body {
             margin: 0;
@@ -52,7 +52,7 @@
         }
 
         /* Thermal Format (80mm width) */
-        @media screen and (max-width: 400px), .format-thermal {
+        @@media screen and (max-width: 400px), .format-thermal {
             body { font-family: 'Courier Prime', monospace; }
             .receipt {
                 width: 80mm;
@@ -119,7 +119,7 @@
         .format-a4 th { font-weight: bold; background: #f9f9f9; }
         .format-a4 .text-right { text-align: right; }
 
-        @media print {
+        @@media print {
             .controls { display: none; }
             body { background: white; margin: 0; padding: 0; }
             .print-container { margin: 0; }
@@ -182,6 +182,12 @@
                             <span>Subtotal:</span>
                             <span>{{ $order->formatted_subtotal }}</span>
                         </div>
+                        @if(($order->discount_amount ?? 0) > 0)
+                            <div class="flex-between">
+                                <span>Diskon promo @isset($order->promo_code)({{ $order->promo_code }}) @endisset:</span>
+                                <span>− {{ $order->formatted_discount_amount }}</span>
+                            </div>
+                        @endif
                         <div class="flex-between">
                             <span>Ongkir:</span>
                             <span>{{ $order->formatted_shipping }}</span>

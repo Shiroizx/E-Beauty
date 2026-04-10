@@ -10,13 +10,23 @@ use Illuminate\Support\Facades\Auth;
 
 class SocialiteController extends Controller
 {
-    public function redirect($provider)
+    private const ALLOWED_PROVIDERS = ['google'];
+
+    public function redirect(string $provider)
     {
+        if (! in_array($provider, self::ALLOWED_PROVIDERS, true)) {
+            abort(404);
+        }
+
         return Socialite::driver($provider)->redirect();
     }
 
-    public function callback($provider)
+    public function callback(string $provider)
     {
+        if (! in_array($provider, self::ALLOWED_PROVIDERS, true)) {
+            abort(404);
+        }
+
         try {
             $socialUser = Socialite::driver($provider)->user();
             

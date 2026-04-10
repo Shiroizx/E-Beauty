@@ -59,4 +59,24 @@ class User extends Authenticatable
     {
         return $this->hasMany(Order::class);
     }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'super_admin';
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->isAdmin() || $this->isSuperAdmin();
+    }
+
+    public function staffDashboardRoute(): string
+    {
+        return $this->isSuperAdmin() ? 'admin.super.dashboard' : 'admin.dashboard';
+    }
 }
